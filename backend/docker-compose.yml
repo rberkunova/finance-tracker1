@@ -1,0 +1,33 @@
+# docker-compose.yml (скорочено)
+services:
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+
+  user-service:
+    build: ./backend/user-service
+    environment:
+      - DB_HOST=postgres
+    depends_on: [postgres]
+    ports: ["3001:3001"]
+
+  transaction-service:
+    build: ./backend/transaction-service
+    ports: ["3002:3002"]
+    depends_on: [postgres]
+
+  goal-service:
+    build: ./backend/goal-service
+    ports: ["3003:3003"]
+    depends_on: [postgres]
+
+  gateway:
+    build: ./backend/gateway
+    ports: ["8000:8000"]
+    depends_on: [user-service, transaction-service, goal-service]
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]

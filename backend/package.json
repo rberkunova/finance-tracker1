@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "user:build": "pnpm --filter user-service run build",
+    "goal:build": "pnpm --filter goal-service run build",
+    "trans:build": "pnpm --filter transaction-service run build",
+    "gate:build": "pnpm --filter gateway run build",
+    "user:dev": "pnpm --filter user-service run start:dev",
+    "user:migrate": "pnpm --filter user-service run migrate:run"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2"
+  }
+}
