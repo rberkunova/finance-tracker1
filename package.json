@@ -1,0 +1,12 @@
+{
+  "name": "finance-tracker",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n \"gateway,user,goal,trans\" -c \"green,blue,yellow,magenta\" \"pnpm --filter ./backend/gateway dev\" \"pnpm --filter ./backend/user-service dev\" \"pnpm --filter ./backend/goal-service dev\" \"pnpm --filter ./backend/transaction-service dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "http-proxy-middleware": "3.0.5",
+    "nodemon": "^3.1.10"
+  }
+}
