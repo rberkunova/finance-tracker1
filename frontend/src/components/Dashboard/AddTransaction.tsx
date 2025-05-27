@@ -97,3 +97,4 @@ const AddTransaction: React.FC<AddTransactionProps> = ({ onAdd }) => {
 };
 
 export default AddTransaction;
+

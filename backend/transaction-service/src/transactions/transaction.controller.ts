@@ -1,3 +1,4 @@
+// backend/transaction-service/src/transactions/transaction.controller.ts
 import {
   Controller,
   Post,
@@ -10,45 +11,46 @@ import {
   HttpStatus,
   NotFoundException,
   ParseUUIDPipe,
+  ValidationPipe,
 } from '@nestjs/common';
-import { TransactionsService } from './transaction.service';
-import { CreateTransactionDto } from './dto/create-transacion.dto';
+import { TransactionsService, FinancialSummaryResult, PaginatedTransactionsResult } from './transaction.service';
+import { CreateTransactionDto } from './dto/create-transacion.dto'; // Перевірте назву файлу, можливо create-transaction.dto.ts
+import { TransactionQueryDto } from './dto/transaction-query.dto';
+import { Transaction } from './transaction.entity';
 
 @Controller('transactions')
 export class TransactionsController {
-  constructor(private readonly txService: TransactionsService) {}
+  constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateTransactionDto) {
-    return this.txService.create(dto);
+  async create(@Body() dto: CreateTransactionDto): Promise<Transaction> {
+    return this.transactionsService.create(dto);
   }
 
   @Get(':userId')
-  findAll(
+  @HttpCode(HttpStatus.OK)
+  async findAll( // Назва методу не має значення, важливі декоратори
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Query('type') type?: 'income' | 'expense',
-    @Query('category') category?: string,
-  ) {
-    // Примітка: Валідацію для 'type' та 'category' можна додати за допомогою DTO для query параметрів
-    // або кастомних Pipes, якщо потрібна складніша логіка.
-    return this.txService.findAllByUser(userId, type, category);
+    @Query(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })) queryDto: TransactionQueryDto,
+  ): Promise<PaginatedTransactionsResult> {
+    // Передаємо userId та queryDto в сервіс
+    return this.transactionsService.findAllByUser(userId, queryDto); // <--- Має приймати 2 аргументи
   }
 
   @Get(':userId/summary')
-  summary(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.txService.summary(userId);
+  @HttpCode(HttpStatus.OK)
+  async summary(@Param('userId', ParseUUIDPipe) userId: string): Promise<FinancialSummaryResult> {
+    return this.transactionsService.summary(userId); // <--- Має приймати 1 аргумент
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    // Важливо: В реальному додатку тут має бути перевірка,
-    // що автентифікований користувач має право видаляти цю транзакцію.
-    // Наприклад, сервісний метод remove може приймати userId автентифікованого користувача.
-    const result = await this.txService.remove(id);
-    if (!result) {
-      throw new NotFoundException(`Транзакцію з ID "${id}" не знайдено.`);
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    const wasDeleted = await this.transactionsService.remove(id);
+    if (!wasDeleted) {
+      // Ця помилка має кидатися з сервісу, якщо result.affected === 0
+      throw new NotFoundException(`Transaction with ID "${id}" could not be deleted or was not found.`);
     }
   }
 }
