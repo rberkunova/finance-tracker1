@@ -1,23 +1,17 @@
 // src/components/Layout.tsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-// import Navbar from './Navbar'; // Приклад навігаційної панелі
-// import Footer from './Footer'; // Приклад футера
 
+// Цей Layout тепер є обгорткою для сторінок, що рендеряться через ProtectedRoute.
+// Наш Dashboard тепер сам містить свій Header.
 const Layout: React.FC = () => {
   return (
-    <div className="app-layout">
-      {/* <Navbar /> */}
-      <header className="bg-gray-800 text-white p-4 text-center">
-        <h1>My Finance Tracker</h1>
-        {/* Тут може бути ваша навігаційна панель, якщо вона частина Layout */}
-      </header>
-      <main className="container mx-auto p-4">
-        <Outlet /> {/* ВАЖЛИВО: Дочірні маршрути будуть рендеритися тут */}
-      </main>
-      <footer className="bg-gray-200 text-center p-4 mt-8">
-        <p>&copy; {new Date().getFullYear()} Finance Tracker</p>
-      </footer>
+    <div className="app-layout-wrapper min-h-screen bg-gray-50"> 
+      {/* Якщо у вас є елементи, спільні для ВСІХ захищених сторінок (не тільки Dashboard),
+        наприклад, глобальна бічна панель або інший тип хедера/футера, їх можна розмістити тут.
+        Але для поточного завдання з односторінковим Dashboard, Header знаходиться всередині Dashboard.tsx.
+      */}
+      <Outlet /> {/* Тут буде рендеритися Dashboard або інші захищені сторінки */}
     </div>
   );
 };

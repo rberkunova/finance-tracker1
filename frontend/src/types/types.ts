@@ -5,33 +5,36 @@ export interface User {
   name?: string;
 }
 
+export type TransactionSortBy = 'transactionDate' | 'amount' | 'category' | 'type'; // Можливі поля для сортування
+export type SortOrder = 'ASC' | 'DESC';
+
 export interface Transaction {
-  id: string; // Зазвичай UUID, залишаємо camelCase
-  user_id: string; // Змінено на snake_case згідно з помилкою
-  amount: number;    // camelCase
-  type: 'income' | 'expense'; // camelCase
-  category: string;  // camelCase
-  description: string; // camelCase
-  transaction_date: string; // Змінено на snake_case згідно з помилкою (очікується ISO рядок)
-  created_at: string;     // Змінено на snake_case згідно з помилкою (очікується ISO рядок)
+  id: string;
+  userId: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: string;
+  description: string;
+  transactionDate: string; // ISO string
+  createdAt: string;       // ISO string
 }
 
 export interface FinancialSummary {
-  totalIncome: number;  // Змінено на camelCase згідно з помилкою
-  totalExpense: number; // Змінено на camelCase згідно з помилкою
-  balance: number;      // camelCase
-  userId?: string;       // camelCase, опціонально
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  userId?: string;
 }
 
 export interface Goal {
   id: string;
-  user_id: string; // Змінено на snake_case для узгодженості, якщо це так у вашій БД/API
-  goalName: string; // camelCase (або goal_name якщо так з бекенду)
+  userId: string;
+  goalName: string;
   targetAmount: number;
   currentAmount: number;
-  deadline: string; 
+  deadline: string;
   status: 'in_progress' | 'completed' | 'failed';
-  created_at: string; // Змінено на snake_case
+  createdAt: string;
 }
 
 export interface LoginApiResponse {
@@ -40,6 +43,16 @@ export interface LoginApiResponse {
 }
 
 export interface RegisterApiResponse {
-  user?: User; 
+  user?: User;
   message?: string;
+}
+
+// Параметри для запиту списку транзакцій (фільтрація, сортування, пагінація)
+export interface TransactionQueryParams {
+  page?: number;
+  limit?: number;
+  type?: 'income' | 'expense';
+  category?: string;
+  sortBy?: TransactionSortBy;
+  sortOrder?: SortOrder;
 }

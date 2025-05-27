@@ -1,66 +1,72 @@
-import { useState, useEffect } from 'react';
+// frontend/src/hooks/useGoals.ts
+import { useState, useEffect, useCallback } from 'react';
 import { Goal } from '../types/types';
 import { useAuth } from '../context/AuthContext';
-import { createGoal as createGoalApi, getUserGoals as getUserGoalsApi, updateGoal as updateGoalApi } from '../services/goalService';
+import {
+  createGoal as apiCreateGoal,
+  getUserGoals as apiGetUserGoals,
+  updateGoal as apiUpdateGoal,
+} from '../services/goalService';
 
 export const useGoals = () => {
-  const { token, user } = useAuth();
+  const { token, user, isAuthenticated } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchGoals = async () => {
-    if (!token || !user) return;
-    
+  const fetchGoals = useCallback(async () => {
+    if (!isAuthenticated || !token || !user?.id) {
+      setGoals([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const goalsData = await getUserGoalsApi(token, user.id);
-      setGoals(goalsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch goals');
+      const data = await apiGetUserGoals(token, user.id);
+      setGoals(data);
+    } catch (e: any) {
+      setError(e.message || 'Failed to fetch goals');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, token, user]);
+
+  useEffect(() => { fetchGoals(); }, [fetchGoals]);
+
+  const addGoal = async (
+    name: string,
+    target: number,
+    deadline: string,
+  ) => {
+    if (!token || !user?.id) throw new Error('No auth');
+    setLoading(true);
+    try {
+      const newGoal = await apiCreateGoal(
+        token,
+        name,
+        target,
+        deadline,
+        user.id,
+      );
+      setGoals((g) => [...g, newGoal]);
     } finally {
       setLoading(false);
     }
   };
 
-  const addGoal = async (goal_name: string, target_amount: number, deadline: string) => {
-    if (!token) return;
-    
+  const updateGoal = async (
+    id: string,
+    updates: Partial<Omit<Goal, 'id' | 'userId' | 'createdAt'>>,
+  ) => {
+    if (!token) throw new Error('No auth');
+    setLoading(true);
     try {
-      setLoading(true);
-      const newGoal = await createGoalApi(token, goal_name, target_amount, deadline);
-      setGoals(prev => [...prev, newGoal]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add goal');
+      const upd = await apiUpdateGoal(token, id, updates);
+      setGoals((g) => g.map((gl) => (gl.id === id ? upd : gl)));
     } finally {
       setLoading(false);
     }
   };
 
-  const updateGoal = async (goalId: string, updates: Partial<Goal>) => {
-    if (!token) return;
-    
-    try {
-      setLoading(true);
-      const updatedGoal = await updateGoalApi(token, goalId, updates);
-      setGoals(prev => prev.map(goal => goal.id === goalId ? updatedGoal : goal));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update goal');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGoals();
-  }, [token, user]);
-
-  return {
-    goals,
-    loading,
-    error,
-    addGoal,
-    updateGoal,
-    refreshGoals: fetchGoals,
-  };
+  return { goals, loading, error, addGoal, updateGoal, refreshGoals: fetchGoals };
 };

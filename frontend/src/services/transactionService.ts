@@ -1,48 +1,74 @@
-// src/services/transactionService.ts
+// frontend/src/services/transactionService.ts
 import { authRequest } from './api';
-import { Transaction, FinancialSummary } from '../types/types'; // Імпортуємо оновлені типи
+import { Transaction, FinancialSummary, TransactionQueryParams } from '../types/types';
+
+// Тип для відповіді з пагінацією, який повертає бекенд
+export interface PaginatedTransactionsResponse {
+  transactions: Transaction[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+}
 
 export const createTransaction = async (
   token: string,
-  currentUserId: string, // Це userId з AuthContext
+  currentUserId: string,
   amount: number,
   type: 'income' | 'expense',
   category: string,
   description: string,
-  date: string // Це transaction_date у форматі YYYY-MM-DD
+  date: string // Очікується 'YYYY-MM-DD'
 ): Promise<Transaction> => {
-  // Тіло запиту повинно відповідати тому, що очікує бекенд
-  // і що відповідає типу Transaction (з полями user_id, transaction_date)
   return authRequest('/transactions', token, {
     method: 'POST',
     body: JSON.stringify({
-      // Якщо бекенд Transaction DTO очікує userId, amount, type, category, description, transactionDate (camelCase)
-      // тоді тут не треба user_id, а треба userId.
-      // Але оскільки помилка вказувала на user_id в типі Transaction, припускаємо, що бекенд чекає snake_case
-      user_id: currentUserId, // Надсилаємо як user_id
+      userId: currentUserId,
       amount,
       type,
       category,
       description,
-      transaction_date: date, // Надсилаємо як transaction_date
+      transactionDate: date,
     }),
   });
 };
 
 export const getUserTransactions = async (
   token: string,
-  userId: string // API endpoint /transactions/:userId (тут userId зазвичай camelCase або як параметр шляху)
-): Promise<Transaction[]> => {
-  // Відповідь від цього API має повертати масив об'єктів Transaction
-  // з полями user_id, transaction_date, created_at
-  return authRequest(`/transactions/${userId}`, token);
+  userId: string,
+  params?: TransactionQueryParams
+): Promise<PaginatedTransactionsResponse> => {
+  let endpoint = `/transactions/${userId}`;
+  if (params) {
+    const queryParams = new URLSearchParams();
+    // Додаємо тільки існуючі параметри
+    if (params.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params.type) queryParams.append('type', params.type);
+    if (params.category) queryParams.append('category', params.category);
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    if (queryString) {
+      endpoint += `?${queryString}`;
+    }
+  }
+  return authRequest(endpoint, token);
 };
 
 export const getFinancialSummary = async (
   token: string,
-  userId: string // API endpoint /transactions/:userId/summary
+  userId: string
 ): Promise<FinancialSummary> => {
-  // Відповідь від цього API має повертати FinancialSummary
-  // з полями totalIncome, totalExpense, balance
   return authRequest(`/transactions/${userId}/summary`, token);
+};
+
+export const deleteTransaction = async (
+  token: string,
+  transactionId: string
+): Promise<void> => { // Відповідь 204 No Content не має тіла
+  await authRequest(`/transactions/${transactionId}`, token, {
+    method: 'DELETE',
+  });
+  // Повертаємо void, оскільки authRequest для 204 поверне null
 };

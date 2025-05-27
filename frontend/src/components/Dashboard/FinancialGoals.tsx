@@ -1,117 +1,214 @@
-import { useState } from 'react';
+// src/components/Dashboard/FinancialGoals.tsx
+import React, { useState } from 'react';
 import { Goal } from '../../types/types';
 import { useGoals } from '../../hooks/useGoals';
 
-const FinancialGoals = ({ goals }: { goals: Goal[] }) => {
+const FinancialGoals: React.FC = () => {
+  const { goals, addGoal, loading, error, refreshGoals } = useGoals();
+
   const [goalName, setGoalName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
-  const [deadline, setDeadline] = useState('');
-  const { addGoal } = useGoals();
+  const [deadline, setDeadline] = useState(
+    new Date().toISOString().split('T')[0],
+  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addGoal(goalName, parseFloat(targetAmount), deadline);
-    // Reset form
-    setGoalName('');
-    setTargetAmount('');
-    setDeadline('');
+    setFormError(null);
+
+    const target = parseFloat(targetAmount);
+    if (!goalName.trim() || isNaN(target) || target <= 0 || !deadline) {
+      setFormError('Please fill in all required fields correctly.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await addGoal(goalName.trim(), target, deadline);
+      setGoalName('');
+      setTargetAmount('');
+      setDeadline(new Date().toISOString().split('T')[0]);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to add goal.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const getProgressColor = (goal: Goal) => {
-    const progress = (goal.current_amount / goal.target_amount) * 100;
-    if (progress >= 100) return 'bg-green-500';
-    if (progress >= 75) return 'bg-blue-500';
-    if (progress >= 50) return 'bg-yellow-500';
-    if (progress >= 25) return 'bg-orange-500';
+  /* helpers ------------------------------------------------------ */
+
+  /** Безпечний number → fixed(2); якщо не число — "0.00" */
+  const toMoney = (value: number | string | null | undefined) => {
+    const n = Number(value);
+    return isFinite(n) ? n.toFixed(2) : '0.00';
+  };
+
+  const getProgressPercent = (g: Goal) => {
+    const current = Number(g.currentAmount);
+    const target = Number(g.targetAmount);
+    if (!target || !isFinite(current)) return 0;
+    return Math.min((current / target) * 100, 100);
+  };
+
+  const getProgressColor = (g: Goal) => {
+    const p = getProgressPercent(g);
+    if (p >= 100) return 'bg-green-500';
+    if (p >= 75) return 'bg-blue-500';
+    if (p >= 50) return 'bg-yellow-500';
+    if (p >= 25) return 'bg-orange-500';
     return 'bg-red-500';
   };
 
+  /* render ------------------------------------------------------- */
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-lg font-medium mb-4">Financial Goals</h3>
-      
-      <form onSubmit={handleSubmit} className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <h3 className="text-xl font-semibold mb-4 text-gray-700">
+        My Financial Goals
+      </h3>
+
+      {/* ---------- add form ---------- */}
+      <form
+        onSubmit={handleSubmit}
+        className="mb-8 p-4 border rounded-lg bg-gray-50 space-y-4"
+      >
+        <h4 className="text-lg font-medium text-gray-800">Add New Goal</h4>
+        {formError && (
+          <div className="p-2 bg-red-100 text-red-700 rounded text-sm">
+            {formError}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="goalName" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="goalName"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Goal Name
             </label>
             <input
-              type="text"
               id="goalName"
+              type="text"
               value={goalName}
               onChange={(e) => setGoalName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border rounded-md"
               required
+              disabled={isSubmitting}
             />
           </div>
+
           <div>
-            <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700 mb-1">
-              Target Amount
+            <label
+              htmlFor="targetAmount"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Target Amount ($)
             </label>
             <input
-              type="number"
               id="targetAmount"
+              type="number"
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border rounded-md"
               step="0.01"
-              min="0"
+              min="0.01"
               required
+              disabled={isSubmitting}
             />
           </div>
+
           <div>
-            <label htmlFor="deadline" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="deadline"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Deadline
             </label>
             <input
-              type="date"
               id="deadline"
+              type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border rounded-md"
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
+
         <button
           type="submit"
-          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          disabled={isSubmitting || loading}
+          className="w-full bg-indigo-600 text-white py-2.5 rounded-md disabled:opacity-60"
         >
-          Add Goal
+          {isSubmitting ? 'Adding...' : 'Add Goal'}
         </button>
       </form>
 
-      {goals.length === 0 ? (
-        <p className="text-gray-500">No goals yet</p>
-      ) : (
+      {/* ---------- messages ---------- */}
+      {loading && <p className="text-gray-500">Loading goals…</p>}
+      {error && !loading && (
+        <p className="text-red-500 bg-red-50 p-3 rounded">
+          {error}{' '}
+          <button
+            onClick={refreshGoals}
+            className="ml-2 text-sm text-blue-500 underline"
+          >
+            Retry
+          </button>
+        </p>
+      )}
+
+      {/* ---------- list ---------- */}
+      {!loading && !error && goals.length === 0 && (
+        <p className="text-gray-500 text-center py-4">
+          You haven&apos;t set any financial goals yet.
+        </p>
+      )}
+
+      {!loading && !error && goals.length > 0 && (
         <div className="space-y-4">
           {goals.map((goal) => (
-            <div key={goal.id} className="border border-gray-200 rounded-lg p-4">
+            <div
+              key={goal.id}
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow"
+            >
               <div className="flex justify-between items-center mb-2">
-                <h4 className="font-medium">{goal.goal_name}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  goal.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  goal.status === 'failed' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
+                <h4 className="font-medium text-gray-800">{goal.goalName}</h4>
+                <span
+                  className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                    goal.status === 'completed'
+                      ? 'bg-green-100 text-green-800'
+                      : goal.status === 'failed'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
                   {goal.status.replace('_', ' ')}
                 </span>
               </div>
+
               <div className="mb-2">
                 <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>${goal.current_amount.toFixed(2)} of ${goal.target_amount.toFixed(2)}</span>
-                  <span>{new Date(goal.deadline).toLocaleDateString()}</span>
+                  <span>
+                    ${toMoney(goal.currentAmount)} of $
+                    {toMoney(goal.targetAmount)}
+                  </span>
+                  {goal.deadline && (
+                    <span>
+                      Deadline:{' '}
+                      {new Date(goal.deadline).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
+
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                   <div
-                    className={`h-2.5 rounded-full ${getProgressColor(goal)}`}
-                    style={{
-                      width: `${Math.min(
-                        (goal.current_amount / goal.target_amount) * 100,
-                        100
-                      )}%`,
-                    }}
+                    className={`h-3 rounded-full ${getProgressColor(goal)}`}
+                    style={{ width: `${getProgressPercent(goal)}%` }}
                   ></div>
                 </div>
               </div>
