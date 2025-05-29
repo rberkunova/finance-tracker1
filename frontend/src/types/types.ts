@@ -5,7 +5,7 @@ export interface User {
   name?: string;
 }
 
-export type TransactionSortBy = 'transactionDate' | 'amount' | 'category' | 'type'; // Можливі поля для сортування
+export type TransactionSortBy = 'transactionDate' | 'amount' | 'category' | 'type';
 export type SortOrder = 'ASC' | 'DESC';
 
 export interface Transaction {
@@ -19,11 +19,24 @@ export interface Transaction {
   createdAt: string;       // ISO string
 }
 
+// Загальний фінансовий звіт (вже існує)
 export interface FinancialSummary {
   totalIncome: number;
   totalExpense: number;
   balance: number;
-  userId?: string;
+  userId?: string; // Це поле може бути зайвим, якщо userId завжди відомий з контексту
+}
+
+// НОВИЙ ТИП: Місячний фінансовий звіт
+export interface MonthlySummary {
+  monthIncome: number;
+  monthExpense: number;
+}
+
+// НОВИЙ ТИП: Витрати за категорією
+export interface CategoryExpense {
+  category: string;
+  totalAmount: number;
 }
 
 export interface Goal {
@@ -32,9 +45,9 @@ export interface Goal {
   goalName: string;
   targetAmount: number;
   currentAmount: number;
-  deadline: string;
+  deadline: string; // ISO string
   status: 'in_progress' | 'completed' | 'failed';
-  createdAt: string;
+  createdAt: string; // ISO string
 }
 
 export interface LoginApiResponse {
@@ -43,11 +56,10 @@ export interface LoginApiResponse {
 }
 
 export interface RegisterApiResponse {
-  user?: User;
+  user?: User; // Може повернути користувача або тільки повідомлення
   message?: string;
 }
 
-// Параметри для запиту списку транзакцій (фільтрація, сортування, пагінація)
 export interface TransactionQueryParams {
   page?: number;
   limit?: number;
@@ -55,4 +67,12 @@ export interface TransactionQueryParams {
   category?: string;
   sortBy?: TransactionSortBy;
   sortOrder?: SortOrder;
+}
+
+// Тип для відповіді з пагінацією (вже існує у вашому transactionService.ts, можна винести сюди для централізації)
+export interface PaginatedTransactionsResponse {
+  transactions: Transaction[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
 }

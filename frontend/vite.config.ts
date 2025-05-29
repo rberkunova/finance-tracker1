@@ -1,18 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
+const BACKEND_ORIGIN = process.env.VITE_API_PROXY ?? 'http://localhost:8000';
+
 export default defineConfig({
+  // ⚠️ шлях, за яким розгортатиметься статичний build (GitHub Pages тощо)
+  base: '/finance-tracker1/',
+
   plugins: [react()],
+
+  /* ───── dev-proxy ───── */
   server: {
-    port: 5173,              // dev-сервер фронтенду
+    port: 5173,
     proxy: {
-      // ⬇️ усе, що починається з /api, піде на Gateway (8000)
       '/api': {
-        target: 'http://localhost:8000',
+        target: BACKEND_ORIGIN,  //  наприклад http://localhost:8000
         changeOrigin: true,
-        secure: false,       // backend працює по http
-        // НІЯКОГО rewrite — /api залишається у шляху
+        secure: false,
+        // залишаємо шлях як є → /api/....
+        rewrite: p => p,
       },
     },
   },

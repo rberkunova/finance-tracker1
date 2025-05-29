@@ -1,33 +1,117 @@
-# docker-compose.yml (скорочено)
+version: '3.8'
+
 services:
+  # --- Frontend (Клієнтська частина) ---
   frontend:
     build: ./frontend
-    ports: ["5173:5173"]
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
 
-  user-service:
-    build: ./backend/user-service
-    environment:
-      - DB_HOST=postgres
-    depends_on: [postgres]
-    ports: ["3001:3001"]
-
-  transaction-service:
-    build: ./backend/transaction-service
-    ports: ["3002:3002"]
-    depends_on: [postgres]
-
-  goal-service:
-    build: ./backend/goal-service
-    ports: ["3003:3003"]
-    depends_on: [postgres]
-
+  # --- API Gateway (Шлюз) ---
   gateway:
     build: ./backend/gateway
-    ports: ["8000:8000"]
-    depends_on: [user-service, transaction-service, goal-service]
+    ports:
+      - "8000:8000"
+    depends_on:
+      - user-service
+      - transaction-service
+      - goal-service
+    environment:
+      # Вказуємо шлюзу, на якому порту працювати всередині контейнера
+      - PORT=8000
+      # Вказуємо адреси інших сервісів. Docker дозволяє звертатися за іменами.
+      - USER_SERVICE_URL=http://user-service:3001
+      - TRANSACTION_SERVICE_URL=http://transaction-service:3002
+      - GOAL_SERVICE_URL=http://goal-service:3003
+    restart: unless-stopped
 
+  # --- Сервіс Користувачів ---
+  user-service:
+    build: ./backend/user-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    environment:
+      - PORT=3001
+      # Налаштування для з'єднання з базою даних
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=finance_db
+    restart: unless-stopped
+
+  # --- Сервіс Транзакцій ---
+  transaction-service:
+    build: ./backend/transaction-service
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+      - rabbitmq # Додаємо залежність від RabbitMQ
+    environment:
+      - PORT=3002
+      # Налаштування для з'єднання з базою даних
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=finance_db
+      # Адреса для з'єднання з RabbitMQ
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672
+    restart: unless-stopped
+      
+  # --- Сервіс Цілей ---
+  goal-service:
+    build: ./backend/goal-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres
+      - rabbitmq
+      - transaction-service # Переконуємось, що сервіс транзакцій запущений першим
+    environment:
+      - PORT=3003
+      # Налаштування для з'єднання з базою даних
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=finance_db
+      # Адреса для з'єднання з RabbitMQ
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672
+      # КЛЮЧОВЕ ВИПРАВЛЕННЯ: Повідомляємо сервісу цілей, де знайти сервіс транзакцій
+      - TRANSACTION_SERVICE_URL=http://transaction-service:3002
+    restart: unless-stopped
+
+  # --- База даних PostgreSQL ---
   postgres:
     image: postgres:15
+    container_name: finance_db_container
+    ports:
+      - "5432:5432"
     environment:
-      POSTGRES_PASSWORD: postgres
-    ports: ["5432:5432"]
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=finance_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Зберігаємо дані між перезапусками
+    restart: unless-stopped
+
+  # --- Меседж Брокер RabbitMQ (Відсутній у вашому файлі) ---
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_container
+    ports:
+      - "5672:5672"   # Порт для комунікації сервісів
+      - "15672:15672" # Веб-інтерфейс для моніторингу
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    restart: unless-stopped
+
+# Створюємо іменований том для зберігання даних PostgreSQL
+volumes:
+  postgres_data:
