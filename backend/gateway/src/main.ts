@@ -27,7 +27,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: cfg.get('FRONTEND_URL') ?? 'http://localhost:5173',
+    origin: cfg.get('FRONTEND_URL') ?? 'http://frontend:5173',
     credentials: true,
   });
 
@@ -35,11 +35,11 @@ async function bootstrap() {
 
   /* -------- URLs мікросервісів -------- */
   const userServiceUrl =
-    cfg.get('USER_SERVICE_URL') ?? 'http://localhost:8001';    // ← виправлено
+    cfg.get('USER_SERVICE_URL') ?? 'http://user-service:8001';    // ← виправлено
   const transactionServiceUrl =
-    cfg.get('TRANSACTION_SERVICE_URL') ?? 'http://localhost:8002';
+    cfg.get('TRANSACTION_SERVICE_URL') ?? 'http://transaction-service:8002';
   const goalServiceUrl =
-    cfg.get('GOAL_SERVICE_URL') ?? 'http://localhost:3003';
+    cfg.get('GOAL_SERVICE_URL') ?? 'http://goal-service:3003';
 
   log.log(`USER_SERVICE_URL resolved to: ${userServiceUrl}`);
   log.log(`TRANSACTION_SERVICE_URL resolved to: ${transactionServiceUrl}`);

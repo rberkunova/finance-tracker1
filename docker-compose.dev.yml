@@ -1,0 +1,13 @@
+# docker-compose.dev.yml
+
+services:
+  # ------------ DEV SHELL ------------
+  dev:
+    container_name: dev-shell
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      # Mount machine current volume to the container
+      - .:/usr/src/app
+    working_dir: /usr/src/app

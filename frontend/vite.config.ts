@@ -5,11 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,              // dev-сервер фронтенду
+    host: true,  // Shorthand for 0.0.0.0. Listen all addresses
+    port: 5173,  // dev-сервер фронтенду
     proxy: {
       // ⬇️ усе, що починається з /api, піде на Gateway (8000)
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://gateway:8000',
         changeOrigin: true,
         secure: false,       // backend працює по http
         // НІЯКОГО rewrite — /api залишається у шляху

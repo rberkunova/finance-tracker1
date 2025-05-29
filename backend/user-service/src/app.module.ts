@@ -10,11 +10,11 @@ import { UsersModule } from './users/users.module';
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         type: 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        port: +(process.env.DB_PORT || 5432),
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || '12112004',
-        database: process.env.DB_NAME || 'pfm_db',
+        host: process.env.DB_HOST ?? 'postgres',
+        port: Number(process.env.DB_PORT ?? 5432),
+        username: process.env.DB_USER ?? 'postgres',
+        password: process.env.DB_PASSWORD ?? 'DBPASSOWD1',
+        database: process.env.DB_NAME ?? 'pfm_db',
 
         entities: [__dirname + '/**/*.entity{.js,.ts}'],
         migrations: [__dirname + '/migrations/**/*.js'],

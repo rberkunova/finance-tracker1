@@ -1,1 +1,23 @@
+/dist
 node_modules
+/build
+*.js
+*.map
+
+# Logs
+
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-store
+
+# VS Code
+*.code-workspace
+.devcontainer/
+
+# Environment
+.env
