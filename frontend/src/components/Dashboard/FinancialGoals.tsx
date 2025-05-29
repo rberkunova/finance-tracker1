@@ -1,10 +1,15 @@
-// src/components/Dashboard/FinancialGoals.tsx
+// frontend/src/components/Dashboard/FinancialGoals.tsx
 import React, { useState } from 'react';
-import { Goal } from '../../types/types';
-import { useGoals } from '../../hooks/useGoals';
+import { Goal } from '../../types/types'; // Переконайтесь, що шлях правильний
+import { useGoals } from '../../hooks/useGoals'; // Переконайтесь, що шлях правильний
 
-const FinancialGoals: React.FC = () => {
-  const { goals, addGoal, loading, error, refreshGoals } = useGoals();
+interface FinancialGoalsProps {
+  dataVersion: number; // <-- НОВЕ: Проп для тригера оновлення
+}
+
+const FinancialGoals: React.FC<FinancialGoalsProps> = ({ dataVersion }) => {
+  // Передаємо dataVersion до хука useGoals
+  const { goals, addGoal, loading, error, refreshGoals } = useGoals(dataVersion);
 
   const [goalName, setGoalName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
@@ -27,9 +32,11 @@ const FinancialGoals: React.FC = () => {
     setIsSubmitting(true);
     try {
       await addGoal(goalName.trim(), target, deadline);
+      // Очищення форми
       setGoalName('');
       setTargetAmount('');
       setDeadline(new Date().toISOString().split('T')[0]);
+      // Список цілей оновиться автоматично завдяки dataVersion або виклику fetchGoals в addGoal хука
     } catch (err: any) {
       setFormError(err.message || 'Failed to add goal.');
     } finally {
@@ -37,31 +44,26 @@ const FinancialGoals: React.FC = () => {
     }
   };
 
-  /* helpers ------------------------------------------------------ */
-
-  /** Безпечний number → fixed(2); якщо не число — "0.00" */
   const toMoney = (value: number | string | null | undefined) => {
     const n = Number(value);
     return isFinite(n) ? n.toFixed(2) : '0.00';
   };
 
   const getProgressPercent = (g: Goal) => {
-    const current = Number(g.currentAmount);
+    const current = Number(g.currentAmount); // currentAmount тепер динамічний з бекенду
     const target = Number(g.targetAmount);
-    if (!target || !isFinite(current)) return 0;
-    return Math.min((current / target) * 100, 100);
+    if (!isFinite(target) || target <= 0 || !isFinite(current) || current < 0) return 0; // Додано перевірки
+    return Math.min(Math.max((current / target) * 100, 0), 100); // Гарантуємо 0-100
   };
 
   const getProgressColor = (g: Goal) => {
     const p = getProgressPercent(g);
     if (p >= 100) return 'bg-green-500';
-    if (p >= 75) return 'bg-blue-500';
-    if (p >= 50) return 'bg-yellow-500';
+    if (p >= 75) return 'bg-sky-500'; // Змінено на sky для кращого контрасту
+    if (p >= 50) return 'bg-yellow-400';
     if (p >= 25) return 'bg-orange-500';
     return 'bg-red-500';
   };
-
-  /* render ------------------------------------------------------- */
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -69,7 +71,6 @@ const FinancialGoals: React.FC = () => {
         My Financial Goals
       </h3>
 
-      {/* ---------- add form ---------- */}
       <form
         onSubmit={handleSubmit}
         className="mb-8 p-4 border rounded-lg bg-gray-50 space-y-4"
@@ -80,7 +81,7 @@ const FinancialGoals: React.FC = () => {
             {formError}
           </div>
         )}
-
+        {/* ... решта форми ... (залишається без змін) ... */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label
@@ -90,71 +91,48 @@ const FinancialGoals: React.FC = () => {
               Goal Name
             </label>
             <input
-              id="goalName"
-              type="text"
-              value={goalName}
+              id="goalName" type="text" value={goalName}
               onChange={(e) => setGoalName(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-              required
-              disabled={isSubmitting}
+              className="w-full px-3 py-2 border rounded-md" required disabled={isSubmitting}
             />
           </div>
-
           <div>
-            <label
-              htmlFor="targetAmount"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700 mb-1">
               Target Amount ($)
             </label>
             <input
-              id="targetAmount"
-              type="number"
-              value={targetAmount}
+              id="targetAmount" type="number" value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
               className="w-full px-3 py-2 border rounded-md"
-              step="0.01"
-              min="0.01"
-              required
-              disabled={isSubmitting}
+              step="0.01" min="0.01" required disabled={isSubmitting}
             />
           </div>
-
           <div>
-            <label
-              htmlFor="deadline"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="deadline" className="block text-sm font-medium text-gray-700 mb-1">
               Deadline
             </label>
             <input
-              id="deadline"
-              type="date"
-              value={deadline}
+              id="deadline" type="date" value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-              required
-              disabled={isSubmitting}
+              className="w-full px-3 py-2 border rounded-md" required disabled={isSubmitting}
             />
           </div>
         </div>
-
         <button
           type="submit"
-          disabled={isSubmitting || loading}
+          disabled={isSubmitting || loading} // Використовуємо loading з useGoals
           className="w-full bg-indigo-600 text-white py-2.5 rounded-md disabled:opacity-60"
         >
           {isSubmitting ? 'Adding...' : 'Add Goal'}
         </button>
       </form>
 
-      {/* ---------- messages ---------- */}
-      {loading && <p className="text-gray-500">Loading goals…</p>}
+      {loading && <p className="text-gray-500 text-center py-4">Loading goals…</p>}
       {error && !loading && (
-        <p className="text-red-500 bg-red-50 p-3 rounded">
+        <p className="text-red-500 bg-red-50 p-3 rounded text-center">
           {error}{' '}
           <button
-            onClick={refreshGoals}
+            onClick={refreshGoals} // refreshGoals з useGoals
             className="ml-2 text-sm text-blue-500 underline"
           >
             Retry
@@ -162,7 +140,6 @@ const FinancialGoals: React.FC = () => {
         </p>
       )}
 
-      {/* ---------- list ---------- */}
       {!loading && !error && goals.length === 0 && (
         <p className="text-gray-500 text-center py-4">
           You haven&apos;t set any financial goals yet.
@@ -190,7 +167,6 @@ const FinancialGoals: React.FC = () => {
                   {goal.status.replace('_', ' ')}
                 </span>
               </div>
-
               <div className="mb-2">
                 <div className="flex justify-between text-sm text-gray-600 mb-1">
                   <span>
@@ -204,7 +180,6 @@ const FinancialGoals: React.FC = () => {
                     </span>
                   )}
                 </div>
-
                 <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                   <div
                     className={`h-3 rounded-full ${getProgressColor(goal)}`}

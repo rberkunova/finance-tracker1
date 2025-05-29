@@ -4,12 +4,17 @@
 
   "homepage": "https://rberkunova.github.io/finance-tracker1/",
 
+  "workspaces": [
+    "frontend",
+    "backend/*"
+  ],
+
   "scripts": {
     "dev": "concurrently -k -n \"gateway,user,goal,trans\" -c \"green,blue,yellow,magenta\" \"pnpm --filter ./backend/gateway dev\" \"pnpm --filter ./backend/user-service dev\" \"pnpm --filter ./backend/goal-service dev\" \"pnpm --filter ./backend/transaction-service dev\"",
 
-    "dev:frontend": "pnpm --filter ./frontend dev",
+    "dev:frontend": "cd frontend && pnpm dev",
 
-    "build": "pnpm --filter ./frontend build",
+    "build": "cd frontend && pnpm build",
 
     "predeploy": "pnpm run build",
 
@@ -20,7 +25,6 @@
     "concurrently": "^8.2.2",
     "http-proxy-middleware": "3.0.5",
     "nodemon": "^3.1.10",
-
     "gh-pages": "^5.0.0"
   }
 }

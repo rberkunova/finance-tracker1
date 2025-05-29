@@ -1,65 +1,71 @@
-// frontend/src/services/api.ts
-const API_BASE_URL = '/api';
+/* ---------- базовий URL ----------
+ * 1) production / staging → задайте   VITE_API_URL   під час білду
+ * 2) локальний dev (npm run dev)      → спрацює проксі на /api
+ */
+const meta = import.meta as any;              // ← прибирає TS-помилку
+const API_BASE_URL: string =
+  meta.env?.VITE_API_URL?.toString().replace(/\/+$/, '') || '/api';
 
-export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  // Визначаємо тип для заголовків, який може містити рядкові ключі
+/* ---------- базовий fetch ---------- */
+export const apiRequest = async (
+  endpoint: string,
+  options: RequestInit = {},
+) => {
   const currentHeaders: Record<string, string> = {
-    // За замовчуванням встановлюємо 'Content-Type', якщо він не перевизначений в options.headers
-    // і якщо тіло запиту не є FormData (FormData сама встановлює Content-Type)
-    ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
-    ...(options.headers as Record<string, string>), // Приводимо options.headers до типу Record<string, string>
+    ...(!(options.body instanceof FormData) && {
+      'Content-Type': 'application/json',
+    }),
+    ...(options.headers as Record<string, string>),
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: currentHeaders, // Використовуємо наш об'єкт заголовків
+    headers: currentHeaders,
   });
 
-  if (!response.ok) {
-    let errorData;
+  if (!res.ok) {
+    let payload: any;
     try {
-      errorData = await response.json();
-    } catch (e) {
-      errorData = { message: response.statusText || `Request failed with status ${response.status}` };
+      payload = await res.json();
+    } catch {
+      payload = { message: res.statusText };
     }
-    const error = new Error(errorData?.message || `Request failed with status ${response.status}`);
-    (error as any).status = response.status;
-    (error as any).errorData = errorData;
-    throw error;
+    const err: any = new Error(
+      payload?.message || `Request failed with status ${res.status}`,
+    );
+    err.status = res.status;
+    err.errorData = payload;
+    throw err;
   }
 
-  if (response.status === 204 || response.headers.get("content-length") === "0") {
+  if (res.status === 204 || res.headers.get('content-length') === '0')
     return null;
-  }
 
   try {
-    return await response.json();
+    return await res.json();
   } catch (e) {
-    console.error("API response was OK, but failed to parse JSON:", e, "Response Text:", await response.text());
-    // Повертаємо текст відповіді, якщо JSON.parse не вдався, для кращої діагностики
-    // Або можна кинути специфічну помилку
-    throw new Error("Failed to parse server response as JSON.");
+    console.error(
+      'API response OK, but JSON parse failed:',
+      e,
+      'Raw text:',
+      await res.text(),
+    );
+    throw new Error('Failed to parse server response as JSON.');
   }
 };
 
+/* ---------- helper із Bearer-токеном ---------- */
 export const authRequest = async (
   endpoint: string,
   token: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ) => {
-  // Початкові заголовки з options.headers, приведені до Record<string, string>
-  const initialHeaders = options.headers ? (options.headers as Record<string, string>) : {};
-
-  const authHeaders: Record<string, string> = {
-    ...initialHeaders, // Спочатку копіюємо існуючі заголовки
-    Authorization: `Bearer ${token}`, // Потім додаємо або перезаписуємо Authorization
-  };
-
-  // Content-Type встановлюється в apiRequest, якщо він не наданий і тіло не FormData
-  // Тому тут ми просто передаємо authHeaders як частину options.headers
+  const initHeaders = options.headers
+    ? (options.headers as Record<string, string>)
+    : {};
 
   return apiRequest(endpoint, {
     ...options,
-    headers: authHeaders,
+    headers: { ...initHeaders, Authorization: `Bearer ${token}` },
   });
 };

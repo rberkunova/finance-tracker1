@@ -1,31 +1,36 @@
 // src/components/Dashboard/RecentTransactions.tsx
-import React, { useMemo, ChangeEvent } from 'react'; // Прибрано useState, якщо він не використовується для локального сортування
-import { Transaction, TransactionQueryParams, TransactionSortBy, SortOrder } from '../../types/types';
+import React, { useMemo, ChangeEvent, useEffect, useRef } from 'react';
+import { TransactionSortBy, SortOrder } from '../../types/types';
 import { useTransactions } from '../../hooks/useTransactions';
 import { FaTrashAlt, FaSort, FaSortUp, FaSortDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-const RecentTransactions: React.FC = () => {
-  const {
-    transactions, // Цей масив має оновлюватися!
-    deleteTransaction,
-    loading,
-    error,
-    queryParams,
-    setQueryParams,
-    currentPage,
-    totalPages,
-    totalCount,
-    refreshTransactions,
-  } = useTransactions(); // Отримуємо все з хука
+interface RecentTransactionsProps {
+  dataVersion: number;
+}
 
-  // categories залежить від transactions, тому має оновлюватися, коли transactions оновлюються
+const RecentTransactions: React.FC<RecentTransactionsProps> = ({ dataVersion }) => {
+  const {
+    transactions, deleteTransaction, loading, error, queryParams,
+    setQueryParams, currentPage, totalPages, totalCount, refreshTransactions,
+  } = useTransactions(); // Власний екземпляр useTransactions
+
+  const prevDataVersionRef = useRef(dataVersion);
+
+  useEffect(() => {
+    // Реагуємо, тільки якщо dataVersion prop дійсно змінився
+    if (dataVersion !== prevDataVersionRef.current) {
+      console.log("RecentTransactions: dataVersion prop changed from", prevDataVersionRef.current, "to", dataVersion, ". Refreshing its own transactions.");
+      refreshTransactions(); // Викликаємо refreshTransactions цього екземпляра хука
+    }
+    prevDataVersionRef.current = dataVersion; // Оновлюємо ref для наступного порівняння
+  }, [dataVersion, refreshTransactions]); // refreshTransactions має бути стабільним
+
   const categories = useMemo(() => {
-    console.log("RecentTransactions: Recalculating categories, transactions length:", transactions.length);
     if (!transactions || transactions.length === 0) return [];
     const uniqueCategories = new Set<string>();
     transactions.forEach(t => uniqueCategories.add(t.category));
     return Array.from(uniqueCategories).sort();
-  }, [transactions]); // Явна залежність від transactions
+  }, [transactions]);
 
   const handleFilterChange = (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,12 +40,8 @@ const RecentTransactions: React.FC = () => {
   const handleSort = (field: TransactionSortBy) => {
     let newSortOrder: SortOrder = 'ASC';
     if (queryParams.sortBy === field) {
-      if (queryParams.sortOrder === 'ASC') {
-        newSortOrder = 'DESC';
-      } else if (queryParams.sortOrder === 'DESC') {
-        setQueryParams({ sortBy: 'transactionDate', sortOrder: 'DESC' }); 
-        return;
-      }
+      if (queryParams.sortOrder === 'ASC') newSortOrder = 'DESC';
+      else { setQueryParams({ sortBy: 'transactionDate', sortOrder: 'DESC' }); return; }
     }
     setQueryParams({ sortBy: field, sortOrder: newSortOrder });
   };
@@ -51,9 +52,9 @@ const RecentTransactions: React.FC = () => {
     return <FaSortDown className="inline ml-1 text-indigo-600" />;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date): string => {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString || 'Invalid Date';
+    if (isNaN(date.getTime())) return String(dateString || 'Invalid Date');
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
@@ -76,8 +77,7 @@ const RecentTransactions: React.FC = () => {
   
   const columnCount = 6;
 
-  console.log("RecentTransactions: Rendering with transactions length:", transactions.length, "Loading:", loading);
-
+  // JSX залишається таким самим, як у попередній відповіді
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
       <h3 className="text-xl font-semibold mb-4 text-gray-700">Transactions List</h3>
@@ -86,11 +86,8 @@ const RecentTransactions: React.FC = () => {
         <div>
           <label htmlFor="typeFilter" className="block text-sm font-medium text-gray-700 mb-1">Filter by Type:</label>
           <select
-            id="typeFilter"
-            name="type"
-            value={queryParams.type || ''}
-            onChange={handleFilterChange}
-            disabled={loading}
+            id="typeFilter" name="type" value={queryParams.type || ''}
+            onChange={handleFilterChange} disabled={loading}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
           >
             <option value="">All Types</option>
@@ -101,11 +98,8 @@ const RecentTransactions: React.FC = () => {
         <div>
           <label htmlFor="categoryFilter" className="block text-sm font-medium text-gray-700 mb-1">Filter by Category:</label>
           <select
-            id="categoryFilter"
-            name="category"
-            value={queryParams.category || ''}
-            onChange={handleFilterChange}
-            disabled={loading || categories.length === 0}
+            id="categoryFilter" name="category" value={queryParams.category || ''}
+            onChange={handleFilterChange} disabled={loading || categories.length === 0}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
           >
             <option value="">All Categories</option>
@@ -161,7 +155,6 @@ const RecentTransactions: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              // Тут ми використовуємо transactions напряму зі стану хука
               transactions.map((transaction) => (
                 <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{formatDate(transaction.transactionDate)}</td>
@@ -171,7 +164,7 @@ const RecentTransactions: React.FC = () => {
                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         transaction.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                        {transaction.type}
+                      {transaction.type}
                     </span>
                   </td>
                   <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>

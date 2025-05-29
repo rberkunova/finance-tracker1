@@ -1,4 +1,5 @@
 // backend/goal-service/src/goals/entities/goal.entity.ts
+// --- ЗМІН НЕ ПОТРІБНО ---
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 export enum GoalStatus {
@@ -23,7 +24,7 @@ export class Goal {
   targetAmount: number;
 
   @Column('decimal', { precision: 12, scale: 2, default: 0 })
-  currentAmount: number;
+  currentAmount: number; // Це поле буде динамічно оновлюватися при читанні
 
   @Column('timestamp without time zone')
   deadline: Date;

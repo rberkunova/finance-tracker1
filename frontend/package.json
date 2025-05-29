@@ -3,14 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-
   "homepage": "https://rberkunova.github.io/finance-tracker1",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-
     "// --- Додані скрипти для деплою ---": "",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
@@ -21,6 +19,7 @@
     "chart.js": "^4.4.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^3.6.0",
+    "finance-tracker": "link:",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
