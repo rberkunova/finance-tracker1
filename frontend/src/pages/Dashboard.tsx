@@ -1,107 +1,111 @@
 // src/pages/Dashboard.tsx
 import React from 'react';
-import { useTransactions } from '../hooks/useTransactions'; // Для StatsCard, TransactionChart та AddTransaction
-import { useGoals } from '../hooks/useGoals'; // Тільки для отримання стану loading/error, якщо потрібно для загального UI
+import { useTransactions } from '../hooks/useTransactions';
+import { useAnalytics } from '../hooks/useAnalytics'; // <-- НОВИЙ ХУК
+
 import Header from '../components/Header';
 import StatsCard from '../components/Dashboard/StatsCard';
 import TransactionChart from '../components/Dashboard/TransactionChart';
 import AddTransaction from '../components/Dashboard/AddTransaction';
-import RecentTransactions from '../components/Dashboard/RecentTransactions'; // Тепер сам керує своїми даними
-import FinancialGoals from '../components/Dashboard/FinancialGoals';     // Тепер сам керує своїми даними
+import RecentTransactions from '../components/Dashboard/RecentTransactions';
+import FinancialGoals from '../components/Dashboard/FinancialGoals';
+import CategoryPieChart from '../components/Dashboard/CategoryPieChart'; // <-- НОВИЙ КОМПОНЕНТ
 
 const Dashboard: React.FC = () => {
-  // useTransactions тут використовується для компонентів, які потребують
-  // загального огляду (summary), можливості додати транзакцію, або даних для графіка.
-  // RecentTransactions тепер сам викликає useTransactions.
   const {
-    summary,          // Для StatsCard
-    transactions,     // Для TransactionChart (якщо він все ще тут, або теж може використовувати свій хук)
-    loading: txLoadingHook, // Перейменовано, щоб уникнути конфлікту
-    error: txErrorHook,     // Перейменовано
-    addTransaction,     // Для форми AddTransaction
-    refreshTransactions, // Для кнопки Retry у випадку помилки завантаження summary/chart
+    summary: overallSummary, // Загальний summary (з balance)
+    transactions,          // Для TransactionChart
+    loading: txLoading,    // Перейменовано для уникнення конфлікту
+    error: txError,        // Перейменовано
+    addTransaction,
+    refreshTransactions,
+    dataVersion,           // Для тригера оновлення дочірніх компонентів
   } = useTransactions();
 
-  // useGoals тут може використовуватися, якщо потрібно відображати глобальний стан завантаження
-  // або помилки для секції цілей на рівні Dashboard.
-  // Сам компонент FinancialGoals буде використовувати useGoals для отримання списку цілей.
-  const { loading: goalsLoadingHook, error: goalsErrorHook } = useGoals(); 
+  // Використовуємо dataVersion з useTransactions для тригера оновлення аналітики та цілей
+  const { 
+    monthlySummary, 
+    categoryExpenses, 
+    loading: analyticsLoading, 
+    error: analyticsError,
+    refreshAnalytics 
+  } = useAnalytics(dataVersion); 
   
-  // Загальний стан завантаження для сторінки, якщо є компоненти, що залежать від різних хуків
-  const pageOverallLoading = txLoadingHook || goalsLoadingHook;
+  // Загальний стан завантаження для основних даних дашборду
+  const pageOverallLoading = txLoading || analyticsLoading;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Header /> {/* Хедер для навігації по секціях */}
+      <Header />
       
       <main className="flex-grow container mx-auto p-4 md:p-6 space-y-10 md:space-y-16">
         
-        {/* Загальний індикатор завантаження, якщо хоча б один з основних хуків завантажує дані */}
         {pageOverallLoading && (
-          <div className="flex justify-center items-center h-64 text-xl text-gray-600">
-            Loading dashboard data...
+          <div className="fixed inset-0 bg-gray-700 bg-opacity-75 flex flex-col justify-center items-center z-50">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-400"></div>
+            <p className="ml-3 mt-4 text-white text-xl">Loading dashboard data...</p>
           </div>
         )}
 
-        {/* Відображення помилки завантаження транзакцій (для summary/chart) */}
-        {!pageOverallLoading && txErrorHook && (
-          <div className="my-4 p-4 bg-red-100 text-red-700 border border-red-300 rounded">
-            <p className="font-semibold">Error loading transaction data:</p>
-            <p>{txErrorHook}</p>
-            <button 
-              onClick={refreshTransactions} 
-              className="mt-2 px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              Retry Loading Transactions
-            </button>
+        {/* Блок для відображення помилок */}
+        {!pageOverallLoading && (txError || analyticsError) && (
+          <div className="my-4 p-4 bg-red-100 text-red-700 border border-red-300 rounded-lg shadow-sm">
+            <p className="font-semibold text-lg mb-2">Oops! Something went wrong:</p>
+            {txError && (
+              <div className="mb-1">
+                - Transactions/Summary: {txError} 
+                <button onClick={refreshTransactions} className="ml-2 text-xs font-medium text-blue-600 hover:text-blue-800 underline">Retry</button>
+              </div>
+            )}
+            {analyticsError && (
+              <div>
+                - Analytics Data: {analyticsError} 
+                <button onClick={refreshAnalytics} className="ml-2 text-xs font-medium text-blue-600 hover:text-blue-800 underline">Retry</button>
+              </div>
+            )}
           </div>
         )}
         
-        {/* Відображення помилки завантаження цілей (якщо хук useGoals повертає error) */}
-        {!pageOverallLoading && goalsErrorHook && (
-          <div className="my-4 p-4 bg-yellow-100 text-yellow-700 border border-yellow-300 rounded">
-            <p className="font-semibold">Note on Goals:</p>
-            <p>{goalsErrorHook} (This section might be using placeholder data or encountered an issue.)</p>
-            {/* Можна додати кнопку Retry для refreshGoals, якщо вона є в useGoals */}
-          </div>
-        )}
-
-        {/* Секція "Overview" (Home) - використовує summary з useTransactions */}
-        {/* Показуємо тільки якщо не було помилки завантаження транзакцій */}
-        {!txLoadingHook && !txErrorHook && (
-          <section id="overview" className="pt-4"> {/* id для react-scroll з Header */}
+        {/* Секція "Overview" з оновленими даними */}
+        {/* Показуємо, тільки якщо основні дані завантажені без помилок */}
+        {!txLoading && !analyticsError && ( // Використовуємо !txLoading, бо overallSummary залежить від useTransactions
+          <section id="overview" className="pt-4">
             <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4 md:mb-6">Overview</h2>
-            <StatsCard summary={summary} />
+            <StatsCard 
+              overallBalance={overallSummary?.balance} 
+              monthIncome={monthlySummary?.monthIncome} // Дані з useAnalytics
+              monthExpense={monthlySummary?.monthExpense} // Дані з useAnalytics
+              loading={analyticsLoading || txLoading} // Передаємо стан завантаження
+            />
           </section>
         )}
 
-        {/* Секція "Transactions" */}
-        <section id="transactions" className="pt-10 md:pt-16"> {/* id для react-scroll */}
-          <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4 md:mb-6">Transactions</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* TransactionChart може використовувати transactions з цього ж useTransactions,
-                  або також мати свій екземпляр useTransactions, якщо йому потрібні інші параметри.
-                  Поки що використовуємо transactions з цього Dashboard.
-              */}
-              {!txLoadingHook && transactions && transactions.length > 0 && (
-                <TransactionChart transactions={transactions} />
-              )}
-              {/* RecentTransactions тепер сам завантажує та керує своїми транзакціями */}
-              <RecentTransactions /> 
+        {/* Розділ "Analytics & Transactions" */}
+        <section id="analytics" className="pt-10 md:pt-16">
+          <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4 md:mb-6">Analytics & Transactions</h2>
+          
+          {/* Графіки та форма додавання транзакції */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div className="lg:col-span-2 space-y-8">
+              {/* Динаміка доходів та витрат (існуючий лінійний графік) */}
+              {/* Він використовує transactions, які оновлюються через dataVersion */}
+              <TransactionChart transactions={transactions} loading={txLoading} />
+
+              {/* Графік витрат за категоріями (нова кругова діаграма) */}
+              <CategoryPieChart categoryExpenses={categoryExpenses} loading={analyticsLoading} />
             </div>
             <div className="lg:col-span-1">
-              {/* AddTransaction використовує функцію addTransaction з useTransactions цього Dashboard */}
               <AddTransaction onAdd={addTransaction} />
             </div>
           </div>
+          
+          {/* Список останніх транзакцій */}
+          <RecentTransactions dataVersion={dataVersion} /> 
         </section>
         
-        {/* Секція "Goals" */}
-        <section id="goals" className="pt-10 md:pt-16"> {/* id для react-scroll */}
+        <section id="goals" className="pt-10 md:pt-16">
           <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4 md:mb-6">Financial Goals</h2>
-          {/* FinancialGoals тепер сам завантажує та керує своїми цілями */}
-          <FinancialGoals />
+          <FinancialGoals dataVersion={dataVersion} />
         </section>
       </main>
     </div>

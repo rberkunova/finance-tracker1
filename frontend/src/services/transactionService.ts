@@ -1,14 +1,24 @@
 // frontend/src/services/transactionService.ts
-import { authRequest } from './api';
-import { Transaction, FinancialSummary, TransactionQueryParams } from '../types/types';
+import { authRequest } from './api'; // Припускаємо, що authRequest або базовий 'api' вже додає "/api"
+import { 
+  Transaction, 
+  FinancialSummary, 
+  TransactionQueryParams,
+  // PaginatedTransactionsResponse, // Тепер буде експортуватися звідси
+  MonthlySummary,
+  CategoryExpense
+} from '../types/types';
 
-// Тип для відповіді з пагінацією, який повертає бекенд
-export interface PaginatedTransactionsResponse {
+// Тип для відповіді з пагінацією
+export interface PaginatedTransactionsResponse { // Експортуємо, щоб виправити помилку TypeScript
   transactions: Transaction[];
   totalCount: number;
   currentPage: number;
   totalPages: number;
 }
+
+// ОНОВЛЕНО: Прибираємо /api, оскільки він, ймовірно, додається в api.ts або authRequest
+const SERVICE_BASE_URL = '/transactions'; 
 
 export const createTransaction = async (
   token: string,
@@ -17,9 +27,9 @@ export const createTransaction = async (
   type: 'income' | 'expense',
   category: string,
   description: string,
-  date: string // Очікується 'YYYY-MM-DD'
+  date: string
 ): Promise<Transaction> => {
-  return authRequest('/transactions', token, {
+  return authRequest(`${SERVICE_BASE_URL}`, token, { // Використовуємо SERVICE_BASE_URL
     method: 'POST',
     body: JSON.stringify({
       userId: currentUserId,
@@ -37,10 +47,9 @@ export const getUserTransactions = async (
   userId: string,
   params?: TransactionQueryParams
 ): Promise<PaginatedTransactionsResponse> => {
-  let endpoint = `/transactions/${userId}`;
+  let endpoint = `${SERVICE_BASE_URL}/user/${userId}`; // Використовуємо SERVICE_BASE_URL
   if (params) {
     const queryParams = new URLSearchParams();
-    // Додаємо тільки існуючі параметри
     if (params.page !== undefined) queryParams.append('page', params.page.toString());
     if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
     if (params.type) queryParams.append('type', params.type);
@@ -53,22 +62,44 @@ export const getUserTransactions = async (
       endpoint += `?${queryString}`;
     }
   }
-  return authRequest(endpoint, token);
+  console.log('Frontend Service: getUserTransactions calling endpoint (after /api):', endpoint);
+  return authRequest(endpoint, token); // authRequest додасть /api, якщо потрібно
 };
 
 export const getFinancialSummary = async (
   token: string,
   userId: string
 ): Promise<FinancialSummary> => {
-  return authRequest(`/transactions/${userId}/summary`, token);
+  const endpoint = `${SERVICE_BASE_URL}/summary/overall/${userId}`; // Використовуємо SERVICE_BASE_URL
+  console.log('Frontend Service: getFinancialSummary calling endpoint (after /api):', endpoint);
+  return authRequest(endpoint, token);
+};
+
+export const getMonthlySummaryData = async (
+  token: string,
+  userId: string,
+): Promise<MonthlySummary> => {
+  const endpoint = `${SERVICE_BASE_URL}/summary/monthly/${userId}`; // Використовуємо SERVICE_BASE_URL
+  console.log('Frontend Service: getMonthlySummaryData calling endpoint (after /api):', endpoint);
+  return authRequest(endpoint, token);
+};
+
+export const getCategoryExpensesData = async (
+  token: string,
+  userId: string,
+): Promise<CategoryExpense[]> => {
+  const endpoint = `${SERVICE_BASE_URL}/expenses/by-category/${userId}`; // Використовуємо SERVICE_BASE_URL
+  console.log('Frontend Service: getCategoryExpensesData calling endpoint (after /api):', endpoint);
+  return authRequest(endpoint, token);
 };
 
 export const deleteTransaction = async (
   token: string,
   transactionId: string
-): Promise<void> => { // Відповідь 204 No Content не має тіла
-  await authRequest(`/transactions/${transactionId}`, token, {
+): Promise<void> => {
+  const endpoint = `${SERVICE_BASE_URL}/${transactionId}`; // Використовуємо SERVICE_BASE_URL
+  console.log('Frontend Service: deleteTransaction calling endpoint (after /api):', endpoint);
+  await authRequest(endpoint, token, {
     method: 'DELETE',
   });
-  // Повертаємо void, оскільки authRequest для 204 поверне null
 };
